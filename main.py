@@ -5,18 +5,24 @@ from transformers import pipeline, set_seed
 
 app = FastAPI(title="DistilGPT2 Chat")
 
-# Load the model once at startup (CPU-only)
+# Load DistilGPT2 once at startup (CPU only).
+# Using the 'distilgpt2' ID keeps downloads smaller than full GPT‑2.[web:71][web:108]
 generator = pipeline(
     "text-generation",
-    model="distilbert/distilgpt2",  # DistilGPT2 model on Hugging Face [web:71][web:74]
-    device=-1                       # CPU
+    model="distilbert/distilgpt2",
+    device=-1,  # CPU
 )
 set_seed(42)
 
+
 @app.get("/")
 async def chat(ask: str = Query(..., min_length=1, max_length=200)):
+    """
+    Call: GET /?ask=your+question
+    Returns JSON: { "question": "...", "answer": "..." }
+    """
     try:
-        output = generator(
+        result = generator(
             ask,
             max_length=min(len(ask.split()) + 40, 80),
             num_return_sequences=1,
@@ -28,8 +34,14 @@ async def chat(ask: str = Query(..., min_length=1, max_length=200)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    return JSONResponse({"question": ask, "answer": output})
+    return JSONResponse({"question": ask, "answer": result})
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000)),
+    )
